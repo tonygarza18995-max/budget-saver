@@ -1,0 +1,40 @@
+{
+  "query": "SELECT * FROM waitlist ORDER BY id ASC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 37nLsFh1JD8rJeZ.root --database ArQFzywuzxmdE7bBHsbJwP --execute SELECT * FROM waitlist ORDER BY id ASC;",
+  "rows": [
+    {
+      "id": "1",
+      "email": "test@example.com",
+      "createdAt": "2026-05-14 02:26:20"
+    },
+    {
+      "id": "2",
+      "email": "testuser@example.com",
+      "createdAt": "2026-05-14 02:26:41"
+    },
+    {
+      "id": "6",
+      "email": "hello@test.com",
+      "createdAt": "2026-05-14 02:27:50"
+    },
+    {
+      "id": "8",
+      "email": "newuser@test.com",
+      "createdAt": "2026-05-14 02:28:21"
+    },
+    {
+      "id": "30001",
+      "email": "test-email-notification@example.com",
+      "createdAt": "2026-05-16 09:23:15"
+    },
+    {
+      "id": "60001",
+      "email": "cherokeeclaybaugh@gmail.com",
+      "createdAt": "2026-05-16 10:05:04"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\tcreatedAt\n1\ttest@example.com\t2026-05-14 02:26:20\n2\ttestuser@example.com\t2026-05-14 02:26:41\n6\thello@test.com\t2026-05-14 02:27:50\n8\tnewuser@test.com\t2026-05-14 02:28:21\n30001\ttest-email-notification@example.com\t2026-05-16 09:23:15\n60001\tcherokeeclaybaugh@gmail.com\t2026-05-16 10:05:04\n",
+  "stderr": "",
+  "execution_time_ms": 564
+}

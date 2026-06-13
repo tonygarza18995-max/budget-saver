@@ -1,0 +1,4 @@
+User-Agent: *
+Allow: /
+
+Sitemap: https://budgetsavr-arqfzywu.manus.space/api/web/sitemap.xml

@@ -1,0 +1,15 @@
+{
+  "query": "SELECT * FROM waitlist;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 37nLsFh1JD8rJeZ.root --database ArQFzywuzxmdE7bBHsbJwP --execute SELECT * FROM waitlist;",
+  "rows": [
+    {
+      "id": "60001",
+      "email": "cherokeeclaybaugh@gmail.com",
+      "createdAt": "2026-05-16 10:05:04"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\tcreatedAt\n60001\tcherokeeclaybaugh@gmail.com\t2026-05-16 10:05:04\n",
+  "stderr": "",
+  "execution_time_ms": 578
+}
