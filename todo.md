@@ -215,3 +215,19 @@
 
 - [x] Add Tip of the Day card on home screen
 - [x] Add Send Feedback button in settings
+
+## Google Play Billing Migration (Current)
+
+- [x] Diagnose react-native-iap API version and correct method signatures
+- [x] Fix TypeScript errors in lib/google-play-billing.ts (4 errors)
+- [x] Read subscription-context.ts to understand current Stripe implementation
+- [x] Update SubscriptionProvider to support Google Play Billing on Android
+- [x] Update SubscriptionModal to show 6 fixed price tiers ($1.99, $2.99, $4.99, $6.99, $9.99, $11.99)
+- [x] Update home screen upsell banner copy (remove "Pay what you want")
+- [x] Update landing-page.tsx pricing copy to reflect dual billing architecture
+- [ ] Test subscription purchase flow on Android
+- [ ] Test subscription cancellation
+- [ ] Create checkpoint after all fixes
+- [ ] Build new APK and upload to closed testing track
+- [ ] Verify testers receive update
+- [ ] Prepare for production launch

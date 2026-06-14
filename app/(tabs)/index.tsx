@@ -166,7 +166,7 @@ export default function HomeScreen() {
               onPress={() => setShowSub(true)}
             >
               <Text style={{ fontSize: 18 }}>⭐</Text>
-              <Text style={[s.premiumBannerTxt, { color: "#f59e0b" }]}>Upgrade to Premium — Pay what you want</Text>
+              <Text style={[s.premiumBannerTxt, { color: "#f59e0b" }]}>Upgrade to Premium — Starting at $1.99/mo</Text>
               <Text style={[s.premiumBannerChevron, { color: "#f59e0b" }]}>›</Text>
             </TouchableOpacity>
           </AnimatedCard>

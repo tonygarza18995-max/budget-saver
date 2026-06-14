@@ -48,7 +48,7 @@ export interface Contribution {
 
 // ─── Subscription ───────────────────────────────────────────────────────────
 
-export type SubscriptionTier = "free" | "basic" | "plus" | "premium";
+export type SubscriptionTier = "free" | "basic" | "plus" | "premium" | "premium_plus" | "elite" | "elite_plus";
 export type BillingCycle = "monthly" | "annual";
 
 export interface Subscription {

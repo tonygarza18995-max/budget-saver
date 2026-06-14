@@ -639,7 +639,7 @@ function PrivacyPolicyPage({ onBack }: { onBack: () => void }) {
 
         <Text style={pp.heading}>Subscription and Payments</Text>
         <Text style={pp.paragraph}>
-          Budget Saver offers an optional "pay what you want" subscription for premium features. At this time, subscription preferences are stored locally on your device. No payment processing is handled directly within the app. Any future integration with payment processors will be governed by the respective platform's privacy policy.
+          Budget Saver offers optional premium subscriptions with fixed pricing tiers. On Android, subscriptions are processed through Google Play Billing. On the website, subscriptions are processed through Stripe with custom "pay what you want" amounts. Subscription preferences are stored locally on your device and synced with the respective payment processor. Payment processing is governed by Google Play's and Stripe's respective privacy policies.
         </Text>
 
         <Text style={pp.heading}>Children's Privacy</Text>
@@ -1011,9 +1011,9 @@ export function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
       {/* ── PRICING ── */}
       <View style={[s.section, { backgroundColor: C.bgCard }]}>
         <Text style={s.sectionLabel}>PRICING</Text>
-        <Text style={s.sectionTitle}>Pay What You Want</Text>
+        <Text style={s.sectionTitle}>Flexible Pricing</Text>
         <Text style={s.sectionSubtitle}>
-          Choose the plan that works for your budget. Yes, even our pricing is budget-friendly.
+          Choose the plan that works for your budget. On the app (Android), fixed tiers. On the web, pay what you want.
         </Text>
         <View style={s.pricingRow}>
           <PricingCard

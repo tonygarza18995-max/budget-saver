@@ -17,13 +17,25 @@ import { useSubscription } from "@/lib/subscription-context";
 import { BillingCycle } from "@/lib/storage";
 import * as Haptics from "expo-haptics";
 import { createPaymentSheet } from "@/lib/stripe-client";
+import { SUBSCRIPTION_SKUS } from "@/lib/google-play-billing";
 
 interface Props {
   visible: boolean;
   onClose: () => void;
 }
 
+// Stripe web: custom amounts
 const PRESET_AMOUNTS = [3, 6, 12, 15];
+
+// Google Play Billing: fixed tiers for Android
+const ANDROID_TIERS = [
+  { sku: SUBSCRIPTION_SKUS.basic, price: 1.99, name: "Basic", color: "#3b82f6" },
+  { sku: SUBSCRIPTION_SKUS.plus, price: 2.99, name: "Plus", color: "#8b5cf6" },
+  { sku: SUBSCRIPTION_SKUS.premium, price: 4.99, name: "Premium", color: "#f59e0b" },
+  { sku: SUBSCRIPTION_SKUS.premium_plus, price: 6.99, name: "Premium Plus", color: "#ec4899" },
+  { sku: SUBSCRIPTION_SKUS.elite, price: 9.99, name: "Elite", color: "#06b6d4" },
+  { sku: SUBSCRIPTION_SKUS.elite_plus, price: 11.99, name: "Elite Plus", color: "#8b5cf6" },
+];
 
 const TIER_PERKS: Record<string, { label: string; icon: string }[]> = {
   free: [
@@ -55,11 +67,11 @@ function getTierLabel(amount: number): { name: string; color: string } {
 export function SubscriptionModal({ visible, onClose }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { state, subscribe, cancelSubscription, changeAmount } = useSubscription();
+  const { state, subscribe, subscribeWithSku, cancelSubscription, changeAmount, isAndroid } = useSubscription();
 
   const isActive = state.subscription.isActive;
   const [selectedAmount, setSelectedAmount] = useState<number>(
-    isActive ? state.subscription.monthlyAmount : 6
+    isActive ? state.subscription.monthlyAmount : isAndroid ? 1.99 : 6
   );
   const [customAmount, setCustomAmount] = useState("");
   const [useCustom, setUseCustom] = useState(false);
@@ -77,14 +89,30 @@ export function SubscriptionModal({ visible, onClose }: Props) {
   const annualSavings = effectiveAmount * 12 * 0.17;
 
   const handleSubscribe = async () => {
-    if (effectiveAmount < 1) {
-      Alert.alert("Minimum Amount", "The minimum subscription is $1/month.");
-      return;
-    }
-
+    if (isProcessing) return;
     setIsProcessing(true);
 
     try {
+      // Android: Use Google Play Billing with fixed SKU
+      if (isAndroid) {
+        const tier = ANDROID_TIERS.find((t) => t.price === effectiveAmount);
+        if (!tier) {
+          Alert.alert("Invalid Tier", "Please select a valid subscription tier.");
+          setIsProcessing(false);
+          return;
+        }
+        await subscribeWithSku(tier.sku);
+        // Purchase will be handled by the listener in subscription context
+        return;
+      }
+
+      // Web/iOS: Use Stripe with custom amount
+      if (effectiveAmount < 1) {
+        Alert.alert("Minimum Amount", "The minimum subscription is $1/month.");
+        setIsProcessing(false);
+        return;
+      }
+
       // Step 1: Create a payment sheet via our server (which calls Stripe)
       const paymentParams = await createPaymentSheet(effectiveAmount);
 
@@ -263,14 +291,16 @@ export function SubscriptionModal({ visible, onClose }: Props) {
             <Text style={[s.heroSub, { color: colors.muted }]}>
               {isActive
                 ? `You're on the ${state.subscription.tier} plan — $${state.subscription.monthlyAmount}/mo`
+                : isAndroid
+                ? "Choose a fixed tier. Cancel anytime."
                 : "Pay what you want. Cancel anytime."}
             </Text>
           </View>
 
-          {/* Stripe badge */}
+          {/* Payment badge */}
           <View style={[s.stripeBadge, { backgroundColor: colors.surface }]}>
             <Text style={[s.stripeBadgeText, { color: colors.muted }]}>
-              {"🔒"} Secure payments powered by Stripe
+              {"🔒"} Secure payments powered by {isAndroid ? "Google Play" : "Stripe"}
             </Text>
           </View>
 
@@ -289,101 +319,148 @@ export function SubscriptionModal({ visible, onClose }: Props) {
             ))}
           </View>
 
-          {/* Billing Cycle Toggle */}
-          <View style={[s.cycleRow, { backgroundColor: colors.surface }]}>
-            {(["monthly", "annual"] as BillingCycle[]).map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[
-                  s.cycleBtn,
-                  {
-                    backgroundColor: billingCycle === c ? colors.primary : "transparent",
-                  },
-                ]}
-                onPress={() => setBillingCycle(c)}
-                disabled={isProcessing}
-              >
-                <Text style={[s.cycleTxt, { color: billingCycle === c ? "#fff" : colors.muted }]}>
-                  {c === "monthly" ? "Monthly" : `Annual (save $${annualSavings.toFixed(0)})`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Amount Selector */}
-          <Text style={[s.sectionLabel, { color: colors.muted }]}>Choose your amount</Text>
-          <View style={s.amountGrid}>
-            {PRESET_AMOUNTS.map((amt) => {
-              const { name, color } = getTierLabel(amt);
-              const isSelected = !useCustom && selectedAmount === amt;
-              return (
+          {/* Billing Cycle Toggle (web/iOS only) */}
+          {!isAndroid && (
+            <View style={[s.cycleRow, { backgroundColor: colors.surface }]}>
+              {(["monthly", "annual"] as BillingCycle[]).map((c) => (
                 <TouchableOpacity
-                  key={amt}
+                  key={c}
                   style={[
-                    s.amountCard,
+                    s.cycleBtn,
                     {
-                      backgroundColor: isSelected ? color + "22" : colors.surface,
-                      borderColor: isSelected ? color : colors.border,
-                      borderWidth: isSelected ? 2 : 1,
+                      backgroundColor: billingCycle === c ? colors.primary : "transparent",
                     },
                   ]}
-                  onPress={() => {
-                    setUseCustom(false);
-                    setSelectedAmount(amt);
-                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
+                  onPress={() => setBillingCycle(c)}
                   disabled={isProcessing}
                 >
-                  <Text style={[s.amountValue, { color: isSelected ? color : colors.foreground }]}>
-                    ${amt}
+                  <Text style={[s.cycleTxt, { color: billingCycle === c ? "#fff" : colors.muted }]}>
+                    {c === "monthly" ? "Monthly" : `Annual (save $${annualSavings.toFixed(0)})`}
                   </Text>
-                  <Text style={[s.amountPer, { color: colors.muted }]}>
-                    {billingCycle === "monthly" ? "/mo" : "/yr"}
-                  </Text>
-                  <View style={[s.tierBadge, { backgroundColor: color + "22" }]}>
-                    <Text style={[s.tierBadgeTxt, { color }]}>{name}</Text>
-                  </View>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Custom Amount */}
-          <TouchableOpacity
-            style={[
-              s.customRow,
-              {
-                backgroundColor: useCustom ? colors.primary + "11" : colors.surface,
-                borderColor: useCustom ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={() => setUseCustom(true)}
-            activeOpacity={0.8}
-            disabled={isProcessing}
-          >
-            <Text style={[s.customLabel, { color: colors.muted }]}>Custom amount</Text>
-            <View style={s.customInputRow}>
-              <Text style={[s.customDollar, { color: useCustom ? colors.primary : colors.muted }]}>$</Text>
-              <TextInput
-                style={[s.customInput, { color: colors.foreground, borderBottomColor: useCustom ? colors.primary : colors.border }]}
-                value={customAmount}
-                onChangeText={(t) => {
-                  setCustomAmount(t);
-                  setUseCustom(true);
-                }}
-                onFocus={() => setUseCustom(true)}
-                placeholder="Enter amount"
-                placeholderTextColor={colors.muted}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-                editable={!isProcessing}
-              />
+              ))}
             </View>
-          </TouchableOpacity>
+          )}
 
-          <Text style={[s.disclaimer, { color: colors.muted }]}>
-            You choose what to pay — every dollar helps us improve Budget Saver. Minimum $1/month. Payments securely processed by Stripe.
-          </Text>
+          {/* Amount Selector */}
+          {isAndroid ? (
+            // Android: Fixed tiers from Google Play Billing
+            <>
+              <Text style={[s.sectionLabel, { color: colors.muted }]}>Choose your tier</Text>
+              <View style={s.amountGrid}>
+                {ANDROID_TIERS.map((tier) => {
+                  const isSelected = !useCustom && selectedAmount === tier.price;
+                  return (
+                    <TouchableOpacity
+                      key={tier.sku}
+                      style={[
+                        s.amountCard,
+                        {
+                          backgroundColor: isSelected ? tier.color + "22" : colors.surface,
+                          borderColor: isSelected ? tier.color : colors.border,
+                          borderWidth: isSelected ? 2 : 1,
+                        },
+                      ]}
+                      onPress={() => {
+                        setUseCustom(false);
+                        setSelectedAmount(tier.price);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      disabled={isProcessing}
+                    >
+                      <Text style={[s.amountValue, { color: isSelected ? tier.color : colors.foreground }]}>
+                        ${tier.price.toFixed(2)}
+                      </Text>
+                      <Text style={[s.amountPer, { color: colors.muted }]}>/mo</Text>
+                      <View style={[s.tierBadge, { backgroundColor: tier.color + "22" }]}>
+                        <Text style={[s.tierBadgeTxt, { color: tier.color }]}>{tier.name}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[s.disclaimer, { color: colors.muted }]}>
+                Secure payments powered by Google Play Billing. Cancel anytime from your Google Play account.
+              </Text>
+            </>
+          ) : (
+            // Web/iOS: Custom amounts via Stripe
+            <>
+              <Text style={[s.sectionLabel, { color: colors.muted }]}>Choose your amount</Text>
+              <View style={s.amountGrid}>
+                {PRESET_AMOUNTS.map((amt) => {
+                  const { name, color } = getTierLabel(amt);
+                  const isSelected = !useCustom && selectedAmount === amt;
+                  return (
+                    <TouchableOpacity
+                      key={amt}
+                      style={[
+                        s.amountCard,
+                        {
+                          backgroundColor: isSelected ? color + "22" : colors.surface,
+                          borderColor: isSelected ? color : colors.border,
+                          borderWidth: isSelected ? 2 : 1,
+                        },
+                      ]}
+                      onPress={() => {
+                        setUseCustom(false);
+                        setSelectedAmount(amt);
+                        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      disabled={isProcessing}
+                    >
+                      <Text style={[s.amountValue, { color: isSelected ? color : colors.foreground }]}>
+                        ${amt}
+                      </Text>
+                      <Text style={[s.amountPer, { color: colors.muted }]}>
+                        {billingCycle === "monthly" ? "/mo" : "/yr"}
+                      </Text>
+                      <View style={[s.tierBadge, { backgroundColor: color + "22" }]}>
+                        <Text style={[s.tierBadgeTxt, { color }]}>{name}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Custom Amount */}
+              <TouchableOpacity
+                style={[
+                  s.customRow,
+                  {
+                    backgroundColor: useCustom ? colors.primary + "11" : colors.surface,
+                    borderColor: useCustom ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setUseCustom(true)}
+                activeOpacity={0.8}
+                disabled={isProcessing}
+              >
+                <Text style={[s.customLabel, { color: colors.muted }]}>Custom amount</Text>
+                <View style={s.customInputRow}>
+                  <Text style={[s.customDollar, { color: useCustom ? colors.primary : colors.muted }]}>$</Text>
+                  <TextInput
+                    style={[s.customInput, { color: colors.foreground, borderBottomColor: useCustom ? colors.primary : colors.border }]}
+                    value={customAmount}
+                    onChangeText={(t) => {
+                      setCustomAmount(t);
+                      setUseCustom(true);
+                    }}
+                    onFocus={() => setUseCustom(true)}
+                    placeholder="Enter amount"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                    editable={!isProcessing}
+                  />
+                </View>
+              </TouchableOpacity>
+
+              <Text style={[s.disclaimer, { color: colors.muted }]}>
+                You choose what to pay — every dollar helps us improve Budget Saver. Minimum $1/month. Payments securely processed by Stripe.
+              </Text>
+            </>
+          )}
 
           {/* CTA */}
           {isActive ? (
@@ -420,7 +497,7 @@ export function SubscriptionModal({ visible, onClose }: Props) {
                 </View>
               ) : (
                 <Text style={s.ctaBtnTxt}>
-                  Subscribe · ${effectiveAmount}/{billingCycle === "monthly" ? "mo" : "yr"}
+                  Subscribe · ${effectiveAmount.toFixed(2)}/{isAndroid ? "mo" : billingCycle === "monthly" ? "mo" : "yr"}
                 </Text>
               )}
             </TouchableOpacity>
