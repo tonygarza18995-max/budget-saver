@@ -13,14 +13,23 @@ import {
   deleteLinkedCard,
   updateLinkedCard,
 } from "./storage";
-import {
-  initBillingConnection,
-  endBillingConnection,
-  setupPurchaseUpdateListener,
-  setupPurchaseErrorListener,
-  getTierFromPurchase,
-  getPriceFromPurchase,
-} from "./google-play-billing";
+// Only import Google Play Billing on native platforms
+let initBillingConnection: any = async () => {};
+let endBillingConnection: any = async () => {};
+let setupPurchaseUpdateListener: any = () => () => {};
+let setupPurchaseErrorListener: any = () => () => {};
+let getTierFromPurchase: any = () => null;
+let getPriceFromPurchase: any = () => null;
+
+if (Platform.OS !== "web") {
+  const gpb = require("./google-play-billing");
+  initBillingConnection = gpb.initBillingConnection;
+  endBillingConnection = gpb.endBillingConnection;
+  setupPurchaseUpdateListener = gpb.setupPurchaseUpdateListener;
+  setupPurchaseErrorListener = gpb.setupPurchaseErrorListener;
+  getTierFromPurchase = gpb.getTierFromPurchase;
+  getPriceFromPurchase = gpb.getPriceFromPurchase;
+}
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -124,7 +133,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         await initBillingConnection();
 
         // Set up purchase update listener
-        unsubscribePurchaseUpdate = setupPurchaseUpdateListener((purchase) => {
+        unsubscribePurchaseUpdate = setupPurchaseUpdateListener((purchase: any) => {
           const tier = getTierFromPurchase(purchase);
           const price = getPriceFromPurchase(purchase);
 
@@ -143,7 +152,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         });
 
         // Set up purchase error listener
-        unsubscribePurchaseError = setupPurchaseErrorListener((error) => {
+        unsubscribePurchaseError = setupPurchaseErrorListener((error: any) => {
           console.error("Purchase error:", error);
         });
       } catch (error) {
@@ -192,7 +201,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     try {
       const { requestSubscriptionPurchase } = await import("./google-play-billing");
-      await requestSubscriptionPurchase(sku);
+      await requestSubscriptionPurchase(sku as any);
       // The purchase will be handled by the purchaseUpdatedListener
     } catch (error) {
       console.error("Failed to request subscription:", error);

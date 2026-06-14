@@ -17,7 +17,8 @@ import { useSubscription } from "@/lib/subscription-context";
 import { BillingCycle } from "@/lib/storage";
 import * as Haptics from "expo-haptics";
 import { createPaymentSheet } from "@/lib/stripe-client";
-import { SUBSCRIPTION_SKUS } from "@/lib/google-play-billing";
+// Only import Google Play Billing SKUs on native platforms
+const SUBSCRIPTION_SKUS = Platform.OS !== "web" ? require("@/lib/google-play-billing").SUBSCRIPTION_SKUS : {};
 
 interface Props {
   visible: boolean;
@@ -28,14 +29,14 @@ interface Props {
 const PRESET_AMOUNTS = [3, 6, 12, 15];
 
 // Google Play Billing: fixed tiers for Android
-const ANDROID_TIERS = [
-  { sku: SUBSCRIPTION_SKUS.basic, price: 1.99, name: "Basic", color: "#3b82f6" },
-  { sku: SUBSCRIPTION_SKUS.plus, price: 2.99, name: "Plus", color: "#8b5cf6" },
-  { sku: SUBSCRIPTION_SKUS.premium, price: 4.99, name: "Premium", color: "#f59e0b" },
-  { sku: SUBSCRIPTION_SKUS.premium_plus, price: 6.99, name: "Premium Plus", color: "#ec4899" },
-  { sku: SUBSCRIPTION_SKUS.elite, price: 9.99, name: "Elite", color: "#06b6d4" },
-  { sku: SUBSCRIPTION_SKUS.elite_plus, price: 11.99, name: "Elite Plus", color: "#8b5cf6" },
-];
+const ANDROID_TIERS = Platform.OS !== "web" ? [
+  { sku: (SUBSCRIPTION_SKUS as any).basic, price: 1.99, name: "Basic", color: "#3b82f6" },
+  { sku: (SUBSCRIPTION_SKUS as any).plus, price: 2.99, name: "Plus", color: "#8b5cf6" },
+  { sku: (SUBSCRIPTION_SKUS as any).premium, price: 4.99, name: "Premium", color: "#f59e0b" },
+  { sku: (SUBSCRIPTION_SKUS as any).premium_plus, price: 6.99, name: "Premium Plus", color: "#ec4899" },
+  { sku: (SUBSCRIPTION_SKUS as any).elite, price: 9.99, name: "Elite", color: "#06b6d4" },
+  { sku: (SUBSCRIPTION_SKUS as any).elite_plus, price: 11.99, name: "Elite Plus", color: "#8b5cf6" },
+] : []
 
 const TIER_PERKS: Record<string, { label: string; icon: string }[]> = {
   free: [

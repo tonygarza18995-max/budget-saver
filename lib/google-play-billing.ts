@@ -11,19 +11,6 @@
  * - elite_plus: $11.99/month (SKU: com.budgetsaver.sub_elite_plus)
  */
 
-import {
-  initConnection,
-  endConnection,
-  fetchProducts,
-  requestPurchase,
-  getAvailablePurchases,
-  finishTransaction,
-  purchaseUpdatedListener,
-  purchaseErrorListener,
-  type ProductSubscription,
-  type Purchase,
-  type PurchaseError,
-} from "react-native-iap";
 import { Platform } from "react-native";
 
 // Subscription tier SKUs for Google Play
@@ -38,202 +25,205 @@ export const SUBSCRIPTION_SKUS = {
 
 export type SubscriptionSKU = keyof typeof SUBSCRIPTION_SKUS;
 
-// Mapping of SKU to tier name and price
-export const SKU_TO_TIER = {
-  [SUBSCRIPTION_SKUS.basic]: { tier: "basic", price: 1.99 },
-  [SUBSCRIPTION_SKUS.plus]: { tier: "plus", price: 2.99 },
-  [SUBSCRIPTION_SKUS.premium]: { tier: "premium", price: 4.99 },
-  [SUBSCRIPTION_SKUS.premium_plus]: { tier: "premium_plus", price: 6.99 },
-  [SUBSCRIPTION_SKUS.elite]: { tier: "elite", price: 9.99 },
-  [SUBSCRIPTION_SKUS.elite_plus]: { tier: "elite_plus", price: 11.99 },
-} as const;
+// Only import react-native-iap on native platforms
+let initConnection: any = async () => {};
+let endConnection: any = async () => {};
+let fetchProducts: any = async () => [];
+let requestPurchase: any = async () => {};
+let getAvailablePurchases: any = async () => [];
+let finishTransaction: any = async () => {};
+let purchaseUpdatedListener: any = () => () => {};
+let purchaseErrorListener: any = () => () => {};
+
+if (Platform.OS !== "web") {
+  const iap = require("react-native-iap");
+  initConnection = iap.initConnection;
+  endConnection = iap.endConnection;
+  fetchProducts = iap.fetchProducts;
+  requestPurchase = iap.requestPurchase;
+  getAvailablePurchases = iap.getAvailablePurchases;
+  finishTransaction = iap.finishTransaction;
+  purchaseUpdatedListener = iap.purchaseUpdatedListener;
+  purchaseErrorListener = iap.purchaseErrorListener;
+}
+
+type ProductSubscription = any;
+type Purchase = any;
+type PurchaseError = any;
+
+// ─── Initialization ────────────────────────────────────────────────────────
 
 /**
- * Initialize the Google Play Billing connection
- * Must be called before any other billing operations
+ * Initialize the Google Play Billing connection.
+ * Must be called before any other billing operations.
  */
 export async function initBillingConnection(): Promise<void> {
-  if (Platform.OS !== "android") {
-    console.warn("Google Play Billing is only available on Android");
-    return;
-  }
-
+  if (Platform.OS === "web") return;
   try {
     await initConnection();
-    console.log("Google Play Billing connection initialized");
   } catch (error) {
-    console.error("Failed to initialize Google Play Billing:", error);
-    throw error;
+    console.error("Failed to initialize billing connection:", error);
   }
 }
 
 /**
- * Close the Google Play Billing connection
+ * End the Google Play Billing connection.
+ * Call this during cleanup (e.g., component unmount).
  */
 export async function endBillingConnection(): Promise<void> {
-  if (Platform.OS !== "android") {
-    return;
-  }
-
+  if (Platform.OS === "web") return;
   try {
     await endConnection();
-    console.log("Google Play Billing connection closed");
   } catch (error) {
-    console.error("Failed to close Google Play Billing connection:", error);
+    console.error("Failed to end billing connection:", error);
   }
 }
 
+// ─── Product Fetching ─────────────────────────────────────────────────────
+
 /**
- * Fetch available subscription products from Google Play
+ * Fetch subscription products from Google Play.
+ * Returns product details including prices and descriptions.
  */
 export async function fetchSubscriptionProducts(): Promise<ProductSubscription[]> {
-  if (Platform.OS !== "android") {
-    console.warn("Google Play Billing is only available on Android");
-    return [];
-  }
-
+  if (Platform.OS === "web") return [];
   try {
     const skus = Object.values(SUBSCRIPTION_SKUS);
-    const products = await fetchProducts({
-      skus,
-      type: "subs",
-    });
-
-    if (!products || !Array.isArray(products)) {
-      console.warn("No subscription products found");
-      return [];
-    }
-
-    return products as ProductSubscription[];
+    const products = await fetchProducts({ skus });
+    return products || [];
   } catch (error) {
     console.error("Failed to fetch subscription products:", error);
-    throw error;
-  }
-}
-
-/**
- * Request a subscription purchase for the given SKU
- * The purchase result will be delivered via purchaseUpdatedListener
- */
-export async function requestSubscriptionPurchase(sku: string): Promise<void> {
-  if (Platform.OS !== "android") {
-    console.warn("Google Play Billing is only available on Android");
-    return;
-  }
-
-  try {
-    await requestPurchase({
-      request: {
-        google: { skus: [sku] },
-      },
-      type: "subs",
-    });
-  } catch (error) {
-    console.error(`Failed to request subscription purchase for SKU ${sku}:`, error);
-    throw error;
-  }
-}
-
-/**
- * Get all available (non-consumed) purchases for the user
- * Includes active subscriptions and pending transactions
- */
-export async function getAvailableSubscriptions(): Promise<Purchase[]> {
-  if (Platform.OS !== "android") {
-    console.warn("Google Play Billing is only available on Android");
     return [];
   }
-
-  try {
-    const purchases = await getAvailablePurchases();
-
-    if (!purchases || !Array.isArray(purchases)) {
-      return [];
-    }
-
-    // Filter to only subscription purchases from Google Play
-    return purchases.filter((p) => p.store === "google") as Purchase[];
-  } catch (error) {
-    console.error("Failed to get available subscriptions:", error);
-    throw error;
-  }
 }
 
+// ─── Purchase Requests ────────────────────────────────────────────────────
+
 /**
- * Finish a transaction after server-side verification
- * This removes the purchase from the queue and acknowledges it
+ * Request a subscription purchase for the given SKU.
+ * Launches the Google Play purchase flow.
  */
-export async function finishSubscriptionTransaction(
-  purchase: Purchase,
-  isConsumable: boolean = false
-): Promise<void> {
-  if (Platform.OS !== "android") {
-    console.warn("Google Play Billing is only available on Android");
+export async function requestSubscriptionPurchase(sku: SubscriptionSKU): Promise<void> {
+  if (Platform.OS === "web") {
+    console.warn("Google Play Billing is not available on web");
     return;
   }
-
   try {
-    await finishTransaction({
-      purchase,
-      isConsumable,
-    });
-    console.log(`Finished transaction for purchase: ${purchase.productId}`);
+    await requestPurchase({ sku, andDangerouslyFinishTransactionAutomaticallyIOS: false });
   } catch (error) {
-    console.error("Failed to finish transaction:", error);
+    console.error("Failed to request subscription purchase:", error);
     throw error;
   }
 }
 
+// ─── Purchase Retrieval ───────────────────────────────────────────────────
+
 /**
- * Set up listener for successful purchases
- * Returns an unsubscribe function
+ * Get all available (active) purchases for the user.
+ * Returns a list of completed purchases.
+ */
+export async function getActivePurchases(): Promise<Purchase[]> {
+  if (Platform.OS === "web") return [];
+  try {
+    const purchases = await getAvailablePurchases();
+    return purchases || [];
+  } catch (error) {
+    console.error("Failed to get available purchases:", error);
+    return [];
+  }
+}
+
+// ─── Purchase Acknowledgment ──────────────────────────────────────────────
+
+/**
+ * Acknowledge a purchase to Google Play.
+ * Must be called after a purchase is completed to prevent refunds.
+ */
+export async function acknowledgePurchase(purchase: Purchase): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    if (purchase.transactionId) {
+      await finishTransaction({ purchase, isConsumable: false });
+    }
+  } catch (error) {
+    console.error("Failed to acknowledge purchase:", error);
+  }
+}
+
+// ─── Event Listeners ──────────────────────────────────────────────────────
+
+/**
+ * Set up a listener for purchase updates.
+ * Returns an unsubscribe function.
  */
 export function setupPurchaseUpdateListener(
   callback: (purchase: Purchase) => void
 ): () => void {
-  if (Platform.OS !== "android") {
+  if (Platform.OS === "web") return () => {};
+  try {
+    const unsubscribe = purchaseUpdatedListener(async (purchase: Purchase) => {
+      callback(purchase);
+      // Acknowledge the purchase
+      await acknowledgePurchase(purchase);
+    });
+    return unsubscribe || (() => {});
+  } catch (error) {
+    console.error("Failed to set up purchase update listener:", error);
     return () => {};
   }
-
-  const subscription = purchaseUpdatedListener((purchase) => {
-    console.log("Purchase updated:", purchase);
-    callback(purchase);
-  });
-
-  return () => subscription.remove();
 }
 
 /**
- * Set up listener for purchase errors
- * Returns an unsubscribe function
+ * Set up a listener for purchase errors.
+ * Returns an unsubscribe function.
  */
 export function setupPurchaseErrorListener(
   callback: (error: PurchaseError) => void
 ): () => void {
-  if (Platform.OS !== "android") {
+  if (Platform.OS === "web") return () => {};
+  try {
+    const unsubscribe = purchaseErrorListener((error: PurchaseError) => {
+      callback(error);
+    });
+    return unsubscribe || (() => {});
+  } catch (error) {
+    console.error("Failed to set up purchase error listener:", error);
     return () => {};
   }
+}
 
-  const subscription = purchaseErrorListener((error) => {
-    console.error("Purchase error:", error);
-    callback(error);
-  });
+// ─── Tier Mapping ─────────────────────────────────────────────────────────
 
-  return () => subscription.remove();
+/**
+ * Map a purchase to its corresponding subscription tier.
+ */
+export function getTierFromPurchase(purchase: Purchase): SubscriptionSKU | null {
+  if (!purchase.productId) return null;
+  const skuEntry = Object.entries(SUBSCRIPTION_SKUS).find(
+    ([_, sku]) => sku === purchase.productId
+  );
+  return skuEntry ? (skuEntry[0] as SubscriptionSKU) : null;
 }
 
 /**
- * Get the tier information from a purchase
+ * Map a subscription tier to its monthly price.
  */
-export function getTierFromPurchase(purchase: Purchase): string | null {
-  const tierInfo = SKU_TO_TIER[purchase.productId as keyof typeof SKU_TO_TIER];
-  return tierInfo?.tier || null;
+export function getPriceFromTier(tier: SubscriptionSKU): number {
+  const prices: Record<SubscriptionSKU, number> = {
+    basic: 1.99,
+    plus: 2.99,
+    premium: 4.99,
+    premium_plus: 6.99,
+    elite: 9.99,
+    elite_plus: 11.99,
+  };
+  return prices[tier] || 0;
 }
 
 /**
- * Get the price from a purchase
+ * Map a purchase to its monthly price.
  */
-export function getPriceFromPurchase(purchase: Purchase): number | null {
-  const tierInfo = SKU_TO_TIER[purchase.productId as keyof typeof SKU_TO_TIER];
-  return tierInfo?.price || null;
+export function getPriceFromPurchase(purchase: Purchase): number {
+  const tier = getTierFromPurchase(purchase);
+  return tier ? getPriceFromTier(tier) : 0;
 }
