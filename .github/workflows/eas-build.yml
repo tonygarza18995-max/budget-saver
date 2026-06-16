@@ -1,8 +1,7 @@
 name: EAS Build
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -22,6 +21,13 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Fix app.config.ts syntax
+        run: |
+          sed -i '/^[[:space:]]*,$/d' app.config.ts
+          if ! grep -q "projectId" app.config.ts; then
+            sed -i 's/experiments: {/extra: {\n    eas: {\n      projectId: "4ee45e5d-073e-437c-97d0-5225c76e575c",\n    },\n  },\n  experiments: {/' app.config.ts
+          fi
+
       - name: Create .env file
         run: |
           touch .env
@@ -35,4 +41,5 @@ jobs:
           EAS_BUILD_NO_EXPO_GO_WARNING: "true"
           NODE_ENV: production
         run: eas build --platform android --profile production --non-interactive --no-wait
+
 
