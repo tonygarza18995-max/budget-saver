@@ -22,12 +22,17 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Create .env file
+        run: |
+          touch .env
+          echo "NODE_ENV=production" >> .env
+
       - name: Install dependencies
         run: npm install -g pnpm && pnpm install
 
       - name: Build Android
         env:
           EAS_BUILD_NO_EXPO_GO_WARNING: "true"
-          EXPO_NO_DOTENV: "1"
           NODE_ENV: production
         run: eas build --platform android --profile production --non-interactive --no-wait
+
